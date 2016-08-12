@@ -1,0 +1,12 @@
+# to run this file with bashdb:
+# $ bashdb -x prtp.sh.bashdb -- ./prtp.sh sh new
+break 88
+continue
+watch curFiletype
+watch curParentFilename
+watch curSnipFileName
+watch curSnipArgFileName
+watch parentFileContent
+watch transformCmd
+watch curTransformCmd
+step

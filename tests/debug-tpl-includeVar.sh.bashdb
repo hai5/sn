@@ -1,0 +1,6 @@
+br 116
+continue
+watch gbParentsArray
+watch curFiletype
+# pr gbParentsArraySize=$gbParentsArraySize
+step

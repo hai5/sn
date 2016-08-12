@@ -1,0 +1,4 @@
+#!/bin/sh
+# author: Nguyen Cong Hai
+
+printf "$(date +%F)"

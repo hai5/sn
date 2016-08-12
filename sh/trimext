@@ -1,0 +1,9 @@
+#!/bin/bash
+#author: Nguyen Cong Hai
+#created: 2016-07-05
+#description: trim the extension part of a filename
+
+:
+cat << EOF
+echo "\${line}" | sed -e 's/\.[^.]\+\$//g' 
+EOF

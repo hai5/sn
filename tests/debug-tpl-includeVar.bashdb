@@ -1,0 +1,5 @@
+br 129
+continue
+watch gbParentsArray
+pr $gbParentsArray
+step

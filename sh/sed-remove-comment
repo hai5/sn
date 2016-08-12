@@ -1,0 +1,8 @@
+#!/bin/sh
+#author: Nguyen Cong Hai
+#created: 2016-08-01 
+
+:
+cat << EOF
+sed -e 's/^[ \t]*#.*\$//g;/^[ \t]*\$/d' "\${FILENAME}" | awk '{printf "%s ",\$0;next;}1' )" 
+EOF
