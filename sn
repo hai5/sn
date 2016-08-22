@@ -5,22 +5,24 @@
 # description: please read README.md attached
 #  change log:
 #   v 0.0.8: changing from bash to sh for efficiency and portability -> change array into string (delimited with ' ')
+[ -n "$DEBUG" ]  && set -x
 
 # ========================= VARIABLES =========================
-BASEDIR="$(readlink -e "$(dirname "$_")")" # the dir name to be used to find the snippet file
+# BASEDIR="$(dirname "$0")" # the dir name to be used to find the snippet file
+# STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
 readonly VAR_PREFIX="_v" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
 readonly PARENT_PREFIX="_p" # file prefix for parent metadata (e.g. Par.sh) (_p.<filetype>)
 readonly DEFAULT_MAX_LOOPCOUNT=10 # prevent infinite loop
 # gbParentsArray="" # array of parent filetypes starting from the input filetype up to and including the found snippet's filetype. This is used to perform transformation operation from the found snippet to the snippet requested by caller
-gbSnipArr='' # array of parent filetypes come across while searching parent tree for the snippet file
-delimgbSnipArr=' '
+# gbSnipArr='' # array of parent filetypes come across while searching parent tree for the snippet file
+# delimgbSnipArr=' '
 
-argSnipName="${1}" ; shift 1 # name of the snippet filetype
+argSnipName='' # name of the snippet filetype
 
 ## temporary holder for filetype (the arg filetype or the parent filetype of the arg filetype, e.g. makefile filetype has its parent as sh):
-lastFiletype='_' # used to guard against infinite loop, must not be empty all the time
+# lastFiletype='_' # used to guard against infinite loop, must not be empty all the time
 # curParentFilename='' # name of file holding parent info about curSnipName
-curSnipName="${argSnipName}"
+curSnipName=''
 # gbSnipArrSize=''
 # curSnipArgFileName=''
 loopCount=0
@@ -55,7 +57,8 @@ transformCmd='' # a command string used to transform text from parent snippet in
  #  exit 1
  # } ; fi
  
-# ========== MAIN ==========  
+# ========== FUNCTION INIT ==========  
+# STEP='func init'
  # gbSnipArrSize=${#gbSnipArr[@]} # for note on gbSnipArr, see args external note just above
   
 # ## set variables if there is a <filetype>/<VARIABLE_NAME>.arg file
@@ -81,14 +84,15 @@ transformCmd='' # a command string used to transform text from parent snippet in
 
 quitErr () {
  # perform some steps prior to quit with error:
-  echo "$*. Filetypes so far: ${gbSnipArr}" >&2
+  # echo "sn: $*. Filetypes so far: ${gbSnipArr}" >&2
+  echo "sn: $*" >&2
   exit 1
 } # quitErr
 
 # ========================= MAIN =========================
 
 ## if no args given:
-[ $# -eq 0 ] && quitErr "pls read ${BASEDIR}/README.md"
+[ $# -eq 0 ] && quitErr "pls read README.md"
 
 # ## ensure that 'set-variable' function has been defined before the following code:
 # if ! (type -t _V | grep -q 'function') ; then {
@@ -98,7 +102,7 @@ quitErr () {
 
 if [ "${1}" = '-C' ] ; then
  if [ -n "$(readlink -e "${2}")" ] ; then
-     BASEDIR="${2}"
+     cd "${2}" || quitErr "failed entering ${2}"
      shift 2
  else
   quitErr "flag -C: it has arg not pointing to valid dir: ${2}"
@@ -107,79 +111,71 @@ fi
 
 ## changding dir to $BASE_DIR:
 # oldDir="$(readlink -e .)"
-cd "${BASEDIR}" || quitErr "failed entering ${BASEDIR}"
  
 ## parsing argument:
+# assume all flags have been stripped, so arg 1 is operand:
+argSnipName="$(readlink -f "${1}")" ; shift 1 
+curSnipName="${argSnipName}"
+loopCount=0
 while true ; do {
  ## check loop conditions:
- if [ -z "$curFiletype" ] ; then
-     quitErr "current filetype is null"
- elif [ -z "${lastFiletype}" ] ; then
-     quitErr "last filetype is null"
- elif [ "${curFiletype}" != "${lastFiletype}" ] ; then
-     quitErr "current filetype same as last filetype: ${curFiletype}"
- elif [ "$loopCount" -gt "$DEFAULT_MAX_LOOPCOUNT" ] ; then
+ if [ "$loopCount" -gt "$DEFAULT_MAX_LOOPCOUNT" ] ; then
      # this means maximum number of looping into parent dirs has reached:
      quitErr "maximum loop reached while finding snippet file ${curSnipName}"
  fi
- 
+
  loopCount=$((loopCount+1))
- lastFiletype="${curFiletype}"
- 
+# lastFiletype="${curFiletype}"
+
  ## base case: if found snippet right away: execute it and quit:
  if [ -n "$(readlink -e "${curSnipName}")" ] ; then
-      break
+     break
+ else ## otherwise: move up to parent snippet:
+  ## prepare to go to parent snippet:
+  ## get filetye of current snippet:
+  curFiletype="$(echo "${curSnipName}" | sed -e 's/^.*\.\([^.]\+\)$/\1/')"
+  # if current snippet has no filetype (its name has no '.<filetype>' extension) -> assume it is base filetype, which should have been caught  by the if clause just above this:
+  if [ "${curFiletype}" = "${curSnipName}" ] ; then
+      # if current file has no extension (i.e. its filetype is base, it should have been caught by the condition above
+      quitErr "snippet filetype not found: ${curSnipName}"
+  else
+   parentMetaFile="${PARENT_PREFIX}.${curFiletype}"
+   snipBaseName="$(echo "${curSnipName}" | sed -e 's/\.[^.]\+$//')"
+   if [ ! -f "${parentMetaFile}" ] ; then
+       # if there is snipbasesame file -> it should be of type 'base' -> use it:
+       if [ -f "${snipBaseName}" ] ; then
+           curSnipName="${snipBaseName}" # update curSnipName to get it sourced after the loop
+           break
+       else
+        quitErr "no parent filename ${parentMetaFile} for this filetype: ${curFiletype}"
+       fi
+   fi
+  fi
  fi
 
- ## otherwise: add this snippet to gbSnipArr and move up to parent snippet:
- ## get filetye of current snippet:
- curFiletype="$(echo "${curSnipName}" | sed -e 's/^.*\.\([^.]\+\)$/\1/')"
- # if current snippet has no filetype (no '.' in snippet name) -> assume it is base filetype already:
- if [ "${curFiletype}" = "${curSnipName}" ] ; then
-     # if current dir is already BASE_FILETYPE dir, conclude the search for snippet file as failure:
-     quitErr "snippet file not found: ${curSnipName}"
+ parentFileContent="$(grep -Ev '^[ \t]*#' "${parentMetaFile}" | sed '/^$/d')" || quitErr "ERROR: failed parsing parent file: ${parentFilename}"
+ # if .parent file has no content or failed to read its content:
+ if [ -z "$parentFileContent" ] ; then
+     quitErr "variable empty: parentFileContent"
  fi
- 
- ## prepare to go to parent snippet:
- baseSnipName="$(echo "${curSnipName}" | sed -e 's/\.[^.]\+$//')"
- parentFileName="${PARENT_PREFIX}.${curFiletype}"
- if [ ! -f "${parentFileName}" ] ; then
-      # if there is snip file with same filename but without the filetype suffix, use it:
-      if [ -f "${baseSnipName}" ] ; then
-           curSnipName="${baseSnipName}" # update curSnipName to get it sourced after the loop
-           break
-      else
-       quitErr "no parent filename ${parentFileName} for this filetype: ${curFiletype}"
-     fi
- fi
- 
- # # to be put somewhere:
- # # add this to gbSnipArr if last element does not include it:
- # # if [ "${gbSnipArr[$((${#gbSnipArr[@]}-1))]}" != "${curFiletype}" ] ; then {
- #  # gbSnipArr[${#gbSnipArr[@]}]="${curFiletype}"
- # # } ; fi
- #  gbSnipArr[${#gbSnipArr[@]}]="${curSnipName}"
- 
- 
- # if exist a file called .parent:
- # last search: searching the $BASEDIR/$BASE_FILETYPE folder for the snippet:
- # searching for snippet file in parent's dir. Parent's dir is read from the ${PARENT_EXT} in the current dir:
- # note: for simplicity only get the 1st dir mentioned in the .parent file:
- parentFileContent="$(grep -Ev '^[ \t]*#' "${parentFileName}" | sed '/^$/d')" ; imm_retval=$?
- if [ $imm_retval -ne 0 ] ; then
-     quitErr "ERROR: failed parsing parent file: ${parentFilename}"
-     # if .parent file has no content or failed to read its content:
- elif [ -z "$parentFileContent" ] ; then
-     quitErr "parent file\"s content is empty: ${parentFilename}"
- fi
- 
+
  parentFileType="$(echo "${parentFileContent}" | head -1)"
+ curSnipName="${snipBaseName}.${parentFileType}"
  case "$(echo "${parentFileContent}" | wc -l)" in
   1) true ;;
-  2) transformCmd="${transformCmd} | $(echo "${parentFileContent}" | tail -1)" ;;
+  2) 
+   curTransformCmd="$(echo "${parentFileContent}" | tail -1)" || quitErr "ERROR: failed parsing 2nd line of variable parentFileContent: ${parentFileContent}"
+   if [ -z "$curTransformCmd" ] ; then
+       quitErr "ERROR: curTransformCmd variable empty"
+   fi
+   if [ -z "$transformCmd" ] ; then
+    transformCmd="${curTransformCmd}"
+   else
+    transformCmd="${transformCmd} | ${curTransformCmd}"
+   fi
+   ;;
   *) quitErr "parent file content malformed: expected 2 lines" ;;
  esac
- curSnipName="${baseSnipName}.${parentFileType}"
  continue
 } ; done
 
