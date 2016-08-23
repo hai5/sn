@@ -10,7 +10,7 @@
 # ========================= VARIABLES =========================
 SNIPDIR='' # the dir name to be used to find the snippet file
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
-# FILETYPE='' # filetype of the snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
+FILETYPE='' # filetype of the initial snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
 # readonly VAR_PREFIX="_v" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
 readonly PARENT_PREFIX="_p" # file prefix for parent metadata (e.g. Par.sh) (_p.<filetype>)
 readonly DEFAULT_MAX_LOOPCOUNT=10 # prevent infinite loop
@@ -59,19 +59,6 @@ transformCmd='' # a command string used to transform text from parent snippet in
 # for i in ${@} ; do eval "echo $i=\$${i}" ; done
 # } # setVars
 
-# _v () {
-#  # purpose: to setup variable for snippet:
-#  # this function is called when a snippet has been found
-#  # args external: gbSnipArr # set by the expandSnip function. So some expandSnip function should be run first before running this function
-#  local thevarname="${1}_${FILETYPE}"
-#  ## if variable already defined in environment, use it:
-#  eval "test -n \${${thevarname}+x}" \
-#   && echo "${thevarname}" \
-#   && return
-#  # recursively call sn to expand the file _v<varname>.<filetype>:
-#   eval "${thevarname}=\"\$($(0) '$(readlink -e .)/_v${1}.${FILETYPE}'\""
-# } # _v 
-
 quitErr () {
  # perform some steps prior to quit with error:
  # echo "sn: $*. Filetypes so far: ${gbSnipArr}" >&2
@@ -79,34 +66,28 @@ quitErr () {
  exit 1
 } # quitErr
 
+_v () {
+ # purpose: to setup variable for snippet:
+ # this function is called when a snippet has been found
+ # args external: gbSnipArr # set by the expandSnip function. So some expandSnip function should be run first before running this function
+ local thevarname="${1}_${FILETYPE}"
+ 
+ [ -z "$FILETYPE" ] && quitErr "filetype unspecified"
+ ## if variable already defined in environment, use it:
+ eval "test -n \"\${${thevarname}+x}\"" \
+  && echo "${thevarname}" \
+  && return
+ # recursively call sn to expand the file _v<varname>.<filetype>:
+  eval "${thevarname}=\"\$($0 \"${SNIPDIR}/${1}.${FILETYPE}\" )\""
+  eval "printf \"\${${thevarname}}\""
+} # _v 
+
 # ========================= MAIN =========================
 
 ## if no args given:
 [ $# -eq 0 ] && quitErr "pls read README.md"
 
 [ "$1" = "--debug" ] && shift 1 && set -x
-
-# ## ensure that 'set-variable' function has been defined before the following code:
-# if ! (type -t _V | grep -q 'function') ; then {
-#  echo "ERROR: function _V has not been loaded before this functionis called."
-#  exit 2
-# } ; fi
-
-# ## identify SNIPDIR:
-# if [ "${1}" = '-C' ] ; then
-#     SNIPDIR="$(readlink -e "${2}")" 
-#     if [ -n "${SNIPDIR}" ] ; then
-#         shift 2
-#     else
-#      quitErr "flag -C: it has arg not pointing to valid dir: ${2}"
-#     fi
-# else
-#  SNIPDIR="$(readlink -e .)" \
-#      || quitErr "failed to identify valid snip dir: ${SNIPDIR}"
-# fi
-
-## changding dir to $BASE_DIR:
-# oldDir="$(readlink -e .)"
 
 ## parsing argument:
 # assume all flags have been stripped, so arg 1 is operand:
@@ -131,6 +112,7 @@ while true ; do {
   ## prepare to go to parent snippet:
   ## get filetye of current snippet:
   curFiletype="$(echo "${curSnipName}" | sed -e 's/^.*\.\([^.]\+\)$/\1/')" || quitErr "failed parsing filetype from ${curSnipName}"
+  test -z "$FILETYPE" && FILETYPE="${curFiletype}"
   # [ -z "$FILETYPE" ] && readonly FILETYPE="${curFiletype}"
   # if current snippet has no filetype (its name has no '.<filetype>' extension) -> assume it is base filetype, which should have been caught  by the if clause just above this:
   if [ "${curFiletype}" = "${curSnipName}" ] ; then
