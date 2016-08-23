@@ -5,7 +5,7 @@
 # description: please read README.md attached
 #  change log:
 #   v 0.0.8: changing from bash to sh for efficiency and portability -> change array into string (delimited with ' ')
-[ -n "$DEBUG" ]  && set -x
+# [ -n "$DEBUG" ]  && set -x
 
 # ========================= VARIABLES =========================
 # SNIPDIR='' # the dir name to be used to find the snippet file
@@ -83,6 +83,8 @@ quitErr () {
 
 ## if no args given:
 [ $# -eq 0 ] && quitErr "pls read README.md"
+
+[ "$1" = "--debug" ] && set -x
 
 # ## ensure that 'set-variable' function has been defined before the following code:
 # if ! (type -t _V | grep -q 'function') ; then {
