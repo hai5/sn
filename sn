@@ -8,7 +8,7 @@
 # [ -n "$DEBUG" ]  && set -x
 
 # ========================= VARIABLES =========================
-# SNIPDIR='' # the dir name to be used to find the snippet file
+SNIPDIR='' # the dir name to be used to find the snippet file
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
 # FILETYPE='' # filetype of the snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
 # readonly VAR_PREFIX="_v" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
@@ -84,7 +84,7 @@ quitErr () {
 ## if no args given:
 [ $# -eq 0 ] && quitErr "pls read README.md"
 
-[ "$1" = "--debug" ] && set -x
+[ "$1" = "--debug" ] && shift 1 && set -x
 
 # ## ensure that 'set-variable' function has been defined before the following code:
 # if ! (type -t _V | grep -q 'function') ; then {
@@ -111,7 +111,8 @@ quitErr () {
 ## parsing argument:
 # assume all flags have been stripped, so arg 1 is operand:
 # argSnipName="$(readlink -f "${1}")" ; shift 1 
-curSnipName="${1}"
+SNIPDIR="$(dirname "${1}")"
+curSnipName="${SNIPDIR}/$(basename "${1}")"
 loopCount=0
 while true ; do {
  ## check loop conditions:
@@ -144,7 +145,7 @@ while true ; do {
            curSnipName="${snipBaseName}" # update curSnipName to get it sourced after the loop
            break
        else
-        quitErr "no parent filename ${parentMetaFile} for this filetype: ${curFiletype}"
+        quitErr "start snip=${1}, current snip=${curSnipName}: files not found: ${curSnipName} or ${parentMetaFile}"
        fi
    fi
   fi
@@ -169,8 +170,8 @@ while true ; do {
  continue
 } ; done
 
-curSnipFullName="$(readlink -e "${curSnipName}")" \
+test -f "${curSnipName}" \
  || quitErr " snippet file not found. final file: ${curSnipName}"
  
- eval ". ${curSnipFullName}${transformCmd}"
+ eval ". ${curSnipName}${transformCmd}"
  
