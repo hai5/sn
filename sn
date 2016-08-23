@@ -8,7 +8,7 @@
 # [ -n "$DEBUG" ]  && set -x
 
 # ========================= VARIABLES =========================
-SNIPDIR='' # the dir name to be used to find the snippet file
+SNIPDIR="${HOME}/sn" # the dir name to be used to find the snippet file
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
 FILETYPE='' # filetype of the initial snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
 # readonly VAR_PREFIX="_v" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
@@ -86,7 +86,7 @@ _v () {
    varFileExt=".${FILETYPE}"
    fi
  # recursively call sn to expand the file _v<varname>.<filetype>:
-  varFileName="${SNIPDIR}/v${1}${varFileExt}"
+  varFileName="v${1}${varFileExt}"
   eval "${thevarname}=\"\$($0 \"${varFileName}\" 2>&1 )\""
   eval "printf \"\${${thevarname}}\""
 } # _v 
@@ -96,13 +96,21 @@ _v () {
 ## if no args given:
 [ $# -eq 0 ] && quitErr "pls read README.md"
 
-[ "$1" = "--debug" ] && shift 1 && set -x
+## FLAGS:
+# -C flag is better than passing relative path to snip name, i.e. `sn -C ~/sn/tst/if.sh` is better than `sn tst/if.sh` because the latter method cannot distinguish between dir current to the caller (e.g. `sn if.sh`) with default snip dir (`sn <DEFAULT-SNIP-DIR>/if.sh`)
+while [ $# -gt 0 ] ; do
+ case "$1" in
+  -d|--debug) set -x && shift 1 ;;  
+  -C|--change-dir) SNIPDIR="${2}" && cd "${SNIPDIR}" && shift 2 ;;
+  *) break ;;
+ esac || quitErr "failed parsing flags"
+done
 
 ## parsing argument:
 # assume all flags have been stripped, so arg 1 is operand:
 # argSnipName="$(readlink -f "${1}")" ; shift 1 
-SNIPDIR="$(dirname "${1}")"
-curSnipName="${SNIPDIR}/$(basename "${1}")"
+curSnipName="${1}"
+
 loopCount=0
 while true ; do {
  ## check loop conditions:
@@ -136,7 +144,7 @@ while true ; do {
            curSnipName="${snipBaseName}" # update curSnipName to get it sourced after the loop
            break
        else
-        quitErr "start snip=${1}, current snip=${curSnipName}: files not found: ${curSnipName} or ${parentMetaFile}"
+        quitErr "argSnipName=${1}: not found, tried curSnipName=${curSnipName}: not found, tried ${parentMetaFile}: not found"
        fi
    fi
   fi
@@ -164,5 +172,5 @@ while true ; do {
 test -f "${curSnipName}" \
  || quitErr " snippet file not found. final file: ${curSnipName}"
  
- eval ". ${curSnipName}${transformCmd}"
+ eval ". ./${curSnipName}${transformCmd}"
  
