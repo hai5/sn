@@ -1,7 +1,7 @@
 #!/bin/sh
 # author: Nguyen Cong Hai
 # created: 2016-08-01
-# version: 0.0.9
+# version: 0.1.0
 # description: please read README.md attached
 #  change log:
 #   v 0.0.8: changing from bash to sh for efficiency and portability -> change array into string (delimited with ' ')
@@ -50,7 +50,7 @@ transformCmd='' # a command string used to transform text from parent snippet in
  #  curFile="${SNIPDIR}/${gbSnipArr[$counter]}/${curVarName}.arg"   # current filename to process
  #  test -f "${curFile}" && eval "${curVarName}=\"$(cat "${curFile}")\"" && break
  # } ; done
- 
+
 # variables not set by the curFile loop above should be set by default values in _base (via the _base/<var-name>.arg file)
 ## set variable if not set by the curFile loop above:
  # curVarValue="${varValArray[$i]}"
@@ -68,17 +68,26 @@ quitErr () {
 
 _v () {
  # purpose: to setup variable for snippet:
+ # each variable's value is stored in a seperate file
  # this function is called when a snippet has been found
  # args external: gbSnipArr # set by the expandSnip function. So some expandSnip function should be run first before running this function
- local thevarname="${1}_${FILETYPE}"
+ local thevarname varFileName varFileExt
  
- [ -z "$FILETYPE" ] && quitErr "filetype unspecified"
+ thevarname="${1}_${FILETYPE}"
+ 
  ## if variable already defined in environment, use it:
  eval "test -n \"\${${thevarname}+x}\"" \
   && echo "${thevarname}" \
   && return
+  
+  if [ -z "$FILETYPE" ] ; then
+   varFileExt=''
+   else
+   varFileExt=".${FILETYPE}"
+   fi
  # recursively call sn to expand the file _v<varname>.<filetype>:
-  eval "${thevarname}=\"\$($0 \"${SNIPDIR}/${1}.${FILETYPE}\" )\""
+  varFileName="${SNIPDIR}/v${1}${varFileExt}"
+  eval "${thevarname}=\"\$($0 \"${varFileName}\" 2>&1 )\""
   eval "printf \"\${${thevarname}}\""
 } # _v 
 

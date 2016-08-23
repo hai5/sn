@@ -66,3 +66,15 @@ describe "\033[1;36mnesting functionality\033[0;0m"
       assert equal "$input" "$expected"
   end
 end
+describe "\033[1;36mexpanding variable functionality\033[0;0m"
+  it "expand var"
+      input="$("${CMD}" ${CMDFLAGS} header.sh)"
+      expected="$(cat ./header-x.sh)"
+      assert equal "$input" "$expected"
+  end
+  it "expand var in another folder"
+      input="$("${CMD}" ${CMDFLAGS} ./sh/header.sh)"
+      expected="$(cat ./sh/header-x.sh)"
+      assert equal "$input" "$expected"
+  end
+end
