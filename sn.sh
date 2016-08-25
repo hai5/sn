@@ -153,7 +153,6 @@ expandSnip () {
      # readonly gbInitSnipDir="$(dirname "${1}")"
      else
       curSnipFullName="${DEFAULT_SNIPDIR}/${1}"
-      quitErr "gbInitSnipDir should not have been initiated already"
        # quitErr "either -C or --change-dir flag or relative snippet name, not both the flag and the relative/absolute snippet file name" 1
  # [ -z "$gbInitSnipDir" ] && readonly gbInitSnipDir="${DEFAULT_gbInitSnipDir}"
      fi
@@ -162,8 +161,6 @@ expandSnip () {
  if [ -z "$gbInitSnipDir" ] ; then
      readonly gbInitSnipDir="$(dirname "${curSnipFullName}")" \
          || quitErr "gbInitSnipDir should not have been initiated already"
- else
-  quitErr "gbInitSnipDir should not have been initiated already"
  fi
  
  ## set the the starting filetype:
