@@ -20,16 +20,24 @@ This program allow user just write one snippet and define a transformation comma
 In this system, snippets/templates are shellscripts -> they can call other snippets/templates. Hence snippet nesting.
 
 # Usage:
+## installing this program:
+
+## test for this program (required ryldn's shpec):
+shpec tst/sn_shpec.sh
+
 ## run program with debug on:
 sn --debug if.sh
 ## print a simple snippet:
-   sn if.sh
+sn if.sh
 ## print a sh snippet inherited from parent (base) snippet:
-   sn header.sh
+sn header.sh
 ## print Gnu's makefile snippet transformed from sh snippet:
-   sn if.makefile
+sn if.makefile
 ## nest snippet:
-   sn new.sh
+sn new.sh
+
+## create a variable to use in snippet body:
+file name for a snippet variable: v<snippetname>.<filetype> (or v<snippetname> if it is of the base filetype)
  
 # Build:
 ## Dependencies:
@@ -47,7 +55,9 @@ file holding information about the parent filetype. 2 lines: line 1: the parent 
 script for testing
 1. ~/.sn/sh/, ~/.sn/markdown/, ...: directory holding snippet scripts for printing out snippet string in specific mode such as sh-mode, markdown-mode, etc
 
-
+# Design decision:
+## Why not just let each snippet file expand on its own:
+Then the snippet file has to exist before user could call it -> rewriting similar snippets for different file types
 
 
 

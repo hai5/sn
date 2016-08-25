@@ -1,0 +1,22 @@
+#!/bin/bash
+#author: Nguyen Cong Hai
+#created: 2016-07-05
+#description: default header template
+
+
+# # not use emacsclient to get specific COMMENT symbol because:
+# # - dependent on emacs for comment symbol -> no need, rather defininng the symbol in each specific mode instead:
+# # - this will cause shell-command-to-string in emacs to halt processing, so comment this out: 
+
+# set default value for COMMENT if not yet defined:
+## if BLOCK_COMMENT_START and BLOCK_COMMENT_END are set, cancel COMMENT and COMMENT_END:
+test -n ${BLOCK_COMMENT_START+x} && COMMENT='' && COMMENT_END=''
+
+:
+printf -- "${BLOCK_COMMENT_START}"
+cat << EOF
+$(_v COMMENT) author: Nguyen Cong Hai$COMMENT_END
+$(_v COMMENT) created: 2016-08-23${COMMENT_END}
+$(_v COMMENT) version: 0.0.1${COMMENT_END}
+EOF
+printf -- "${BLOCK_COMMENT_END}"

@@ -3,7 +3,6 @@
 #created: 2016-07-05
 #description:
 
-:
 cat << EOF
 PROGNAME="\$(basename \${0})"
 

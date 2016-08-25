@@ -1,0 +1,18 @@
+#!/bin/bash
+set -o errexit
+
+#define parameters which are passed in.
+content="$(xclip -out)"  # this has led to non-halting if run inside emacs before
+accessedate="$(date +%F)"
+
+## focus on web browser and copy the link:
+("${HOME}"/bin/focus web 2>/dev/null) 
+xdotool key ctrl+l 
+xdotool key ctrl+c 
+xdotool key super+Tab
+cat << EOF
+from [[$(xclip -out)]]. accessed ${accessedate}.
+#+BEGIN_QUOTE
+${content}
+#+END_QUOTE
+EOF

@@ -4,4 +4,4 @@
 # version: 0.0.1
 
 echo "#!/usr/bin/env sh"
-sn ./begin.sh
+sn begin.sh

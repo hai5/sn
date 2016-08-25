@@ -1,9 +1,0 @@
-#!/bin/sh
-
-#define parameters which are passed in.
-website="$(xclip -out)"
-accessedate="$(date +%F)"
-
-cat  << EOF
-$website . accessed $accessedate.
-EOF
