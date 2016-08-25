@@ -3,7 +3,7 @@
 #created: 2016-07-05
 
 cat << EOF
-quitErr {
+quitErr () {
  # perform some steps prior to quit with error:
  # echo "sn: \$*. Filetypes so far: \${gbSnipArr}" >&2
  echo "sn: \$*" >&2 

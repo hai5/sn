@@ -7,10 +7,11 @@ SHELL=/bin/bash
 CMDFLAGS=--verbose
 
 
-~/bin/sn: sn.sh
-	cp -u $(CMDFLAGS) "$^" "$@" 
-
-install: ~/bin/sn
+install: FORCE 
+	cp -u ./sn.sh ..
+	cp -u $(CMDFLAGS) ./sn.sh ~/bin/sn
+	git add ..
+	git commit
 
 uninstall: 
 	rm $(CMDFLAGS) ~/bin/sn

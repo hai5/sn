@@ -5,13 +5,13 @@ quitErr () {
  exit "$1"
 } # quitErr
 
-if ! (readlink -e . | grep -Eq '/sn$') ; then
- quitErr "need to be in sn dir"
-else
- make
-fi
+# if ! (readlink -e . | grep -Eq '/sn$') ; then
+#  quitErr "need to be in sn dir"
+# else
+#  make
+# fi
 
-CMD="${HOME}/bin/sn"
+CMD="$(readlink -e ./sn.sh)"
 # SNIPNAME_CAT_OTHER_FOLDER="./tst/sh"
 
 # CMDFLAGS="-C $(pwd)"
