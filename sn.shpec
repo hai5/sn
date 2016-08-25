@@ -15,7 +15,9 @@ CMD="${HOME}/bin/sn"
 # SNIPNAME_CAT_OTHER_FOLDER="./tst/sh"
 
 # CMDFLAGS="-C $(pwd)"
-for i in '' '-C ./tst' ; do
+
+# remove case '-C ./tst' due to removal of this flag in source code for simplicity:
+for i in '' ; do
  describe "flag: ${i}"
  if [ -z "$i" ] ; then
      SNIPNAME_RELATIVE='./tst/'

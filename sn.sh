@@ -10,7 +10,7 @@
 # ========================= VARIABLES =========================
 DEFAULT_SNIPDIR="${HOME}/sn" # as named
 
-gbInitSnipDir='' # the dir name to be used to find the snippet file. if snippet file name argument (in command line) has relative/absolute path -> the snippet's dir will be the initial snippet dir to operate on. if the snippet file not found in this dir, the program will try searching in the DEFAULT_SNIPDIR
+gbInitSnipDir='' # the dir name to be used to find the snippet file. if snippet file name argument (in command line) has relative/absolute path -> the snippet's dir will be the initial snippet dir to operate on. if the snippet file not found in this dir, the program will try searching in the DEFAULT_SNIPDIR. note that when passing argument to set this initial dir, either -C or --change-dir flag or relative snippet name, not both the flag and the relative/absolute snippet file name
 
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
 
@@ -134,7 +134,8 @@ expandSnip () {
  while [ $# -gt 0 ] ; do
   case "$1" in
    -d|--debug) set -x && shift 1 ;;  
-   -C|--change-dir) readonly gbInitSnipDir="$(readlink -e "${2}")" && shift 2 || quitErr "failed parsing snip dir ${2}"  ;;
+   -*) quitErr "unrecognized flag ${1}" ;;
+   # -C|--change-dir) readonly gbInitSnipDir="$(readlink -e "${2}")" && shift 2 || quitErr "failed parsing snip dir ${2}"  ;;
    *) break ;;
   esac || quitErr "failed parsing flags" 1
  done
@@ -150,11 +151,13 @@ expandSnip () {
  
  if (echo "${1}" | grep -q '/') ; then
      if [ -z "$gbInitSnipDir" ] ; then
-         readonly gbInitSnipDir="$(dirname "${curSnipFullName}")"
+         readonly gbInitSnipDir="$(dirname "${curSnipFullName}")" \
+         || quitErr "gbInitSnipDir should not have been initiated already"
      # quitErr 1 "no dir name in snip name please. use -C/--change-dir flag for that."
      # readonly gbInitSnipDir="$(dirname "${1}")"
      else
-       quitErr "either --change-dir flag or relative snippet name, not both" 1
+      quitErr "gbInitSnipDir should not have been initiated already"
+       # quitErr "either -C or --change-dir flag or relative snippet name, not both the flag and the relative/absolute snippet file name" 1
  # [ -z "$gbInitSnipDir" ] && readonly gbInitSnipDir="${DEFAULT_gbInitSnipDir}"
      fi
  fi
