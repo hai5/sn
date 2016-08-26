@@ -11,9 +11,7 @@
 # set default value for COMMENT if not yet defined:
 ## if BLOCK_COMMENT_START and BLOCK_COMMENT_END are set, cancel COMMENT and COMMENT_END:
 cat << EOF
-$(_v COMMENT) author: Nguyen Cong Hai
-$(_v COMMENT) created: $(date +%F)
-$(_v COMMENT) version: 0.0.1
+$(_v COMMENT) created: $(date +%F) author: Cong Hai Nguyen version: 0.0.1
 $(_v COMMENT) license: GNU GPL-v3 (https://www.gnu.org/licenses/gpl-3.0.txt)
 $(_v COMMENT) description: 
 EOF

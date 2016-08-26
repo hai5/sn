@@ -163,8 +163,9 @@ expandSnip () {
          || quitErr "gbInitSnipDir should not have been initiated already"
  fi
  
- ## set the the starting filetype:
- [ -z "$gbInitFtype" ] && readonly gbInitFtype="$(getExtension "${curSnipFullName}")"
+ ## set the the starting filetype
+ curFtype="$(getExtension "${curSnipFullName}")"
+ [ -n "$curFtype" ] && [ -z "$gbInitFtype" ] && readonly gbInitFtype="${curFtype}"
  cd "${gbInitSnipDir}" 
  
  ## go to the current snippet dir:
