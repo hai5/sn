@@ -8,6 +8,8 @@
 # [ -n "$DEBUG" ]  && set -x
 
 # ========================= VARIABLES =========================
+PATH="$(printf "%q" "${PATH}" | sed -e "s:${HOME}/bin::")"
+
 DEFAULT_SNIPDIR="${HOME}/sn" # as named
 
 gbInitSnipDir='' # the dir name to be used to find the snippet file. if snippet file name argument (in command line) has relative/absolute path -> the snippet's dir will be the initial snippet dir to operate on. if the snippet file not found in this dir, the program will try searching in the DEFAULT_SNIPDIR. note that when passing argument to set this initial dir, either -C or --change-dir flag or relative snippet name, not both the flag and the relative/absolute snippet file name
