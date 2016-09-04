@@ -5,8 +5,7 @@
 cat << EOF
 quitErr () {
  # perform some steps prior to quit with error:
- # echo "sn: \$*. Filetypes so far: \${gbSnipArr}" >&2
- echo "sn: \$*" >&2 
+ printf "\$0: \$*\n" >&2 
  shift 1
  if [ \$# -gt 0 ] ; then
      exit "\$1"
