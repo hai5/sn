@@ -17,11 +17,11 @@ hash -r
 
 DEFAULT_SNIPDIR="${HOME}/sn" # as named
 
-gbInitSnipDir='' # the dir name to be used to find the snippet file. if snippet file name argument (in command line) has relative/absolute path -> the snippet's dir will be the initial snippet dir to operate on. if the snippet file not found in this dir, the program will try searching in the DEFAULT_SNIPDIR. note that when passing argument to set this initial dir, either -C or --change-dir flag or relative snippet name, not both the flag and the relative/absolute snippet file name
+snipDir="${DEFAULT_SNIPDIR}" # the dir name to be used to find the snippet file
 
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
 
-gbInitFtype='' # filetype of the initial snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
+initFileType='' # filetype of the initial snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
 
 readonly VAR_PREFIX=".var" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
 
@@ -51,9 +51,9 @@ getExtension () {
  fi
 } # getExtension
 
-getRootName () {
+getNameSansExtension () {
  echo "$*" | sed -e 's/\.[^.]\+$//'
-} # getRootName
+} # getNameSansExtension
 
 _v () {
  # expand var
@@ -63,20 +63,20 @@ _v () {
  # args external: gbSnipArr # set by the expandSnip function. So some expandSnip function should be run first before running this function
  local thevarname varFileName varFileExt
  
- thevarname="${1}_${gbInitFtype}"
+ thevarname="${1}_${initFileType}"
  
  ## if variable already defined in environment, use it:
  eval "test -n \"\${${thevarname}+x}\"" \
      && echo "${thevarname}" \
      && return
  
- if [ -z "$gbInitFtype" ] ; then
+ if [ -z "$initFileType" ] ; then
      varFileExt=''
  else
-  varFileExt=".${gbInitFtype}"
+  varFileExt=".${initFileType}"
  fi
  # recursively call sn to expand the file _v<varname>.<filetype>:
- varFileName="$(dirname "${gbInitSnipDir}")/v${1}${varFileExt}"
+ varFileName="$(dirname "${snipDir}")/v${1}${varFileExt}"
  eval "${thevarname}=\"\$($0 \"${varFileName}\" 2>&1 )\""
  eval "printf \"\${${thevarname}}\""
 } # _v 
@@ -84,122 +84,90 @@ _v () {
 # ========================= MAIN =========================
 
 expandSnip () {
- ## temporary holder for filetype (the arg filetype or the parent filetype of the arg filetype, e.g. makefile filetype has its parent as sh):
- # lastFiletype='_' # used to guard against infinite loop, must not be empty all the time
- local curSnipFullName=''
- # local curSnipDir='' # current snip dir used to find snippet files. 
- # curParentFilename='' # name of file holding parent info about curSnipFullName
- # gbSnipArrSize=''
- # curSnipArgFileName=''
+ local snipName="${1}"
+ local snipFileType='' # initial filetype, parsed from snipName
  local loopCount=0
- # includerFileArray='' # string to hold snippet include files (include files are files that set variables prior to loading the real snip file, e.g. sh/header.arg set COMMENT variable approriately prior to loading _base/header).
  local parentFileType='' # type of parent file, as read from parent metafile
  local parentFileContent='' # parent's file content stripped off # and blank lines
  local transformCmd='' # a command string used to transform text from parent snippet into child snippet (e.g. transforming single $ in sh into $$ in makefile)
- # # replaced by curSnipFullName
- # snipToSource='' # the ultimate physical snip file to be sourced, it will be identified via the loop
- # local filetype='' # the filetype of the arg snippet name
+ local snipDir="${snipDir}"
 
  ## if no args given:
- [ $# -eq 0 ] && quitErr "pls read README.md"
+ [ $# -eq 0 ] && quitErr "expandSnip(): expecting args"
 
  ## FLAGS:
   case "$1" in
    --debug) set -x && shift 1 ;;  
+   -C|--change-dir) snipDir="$2" ; shift 2 ;;
   esac
 
- ## parsing argument:
- 
- ## identifying the initial snippet dir:
- # if $1 has '/' in it -> user want to use snippet not in the default NSIPDIR (but parent snippet and all still be searched in gbInitSnipDir, unless user also wants to change gbInitSnipDir with -C flag):
- ## set the starting snip dir:
- if (echo "${1}" | grep -q '/') ; then
-     curSnipFullName="$(readlink -f "${1}")"
- # curSnipDir="${gbInitSnipDir}"
- 
-     # quitErr 1 "no dir name in snip name please. use -C/--change-dir flag for that."
-     # readonly gbInitSnipDir="$(dirname "${1}")"
-     else
-      curSnipFullName="${DEFAULT_SNIPDIR}/${1}"
-       # quitErr "either -C or --change-dir flag or relative snippet name, not both the flag and the relative/absolute snippet file name" 1
- # [ -z "$gbInitSnipDir" ] && readonly gbInitSnipDir="${DEFAULT_gbInitSnipDir}"
-     fi
-
- ## set gbInitSnipDir:
- if [ -z "$gbInitSnipDir" ] ; then
-     readonly gbInitSnipDir="$(dirname "${curSnipFullName}")" \
-         || quitErr "gbInitSnipDir should not have been initiated already"
- fi
- 
- ## set the the starting filetype
- curFtype="$(getExtension "${curSnipFullName}")"
- [ -n "$curFtype" ] && [ -z "$gbInitFtype" ] && readonly gbInitFtype="${curFtype}"
- cd "${gbInitSnipDir}" 
- 
+  ## change to dir:
  ## go to the current snippet dir:
-
- loopCount=0
- while true ; do {
-  ## check loop conditions:
-  if [ "$loopCount" -gt "$DEFAULT_MAX_LOOPCOUNT" ] ; then
-      # this means maximum number of looping into parent dirs has reached:
-      quitErr "maximum loop reached while finding snippet file ${curSnipFullName}" 1
-  fi
-
-  loopCount=$((loopCount+1))
-  # lastFiletype="${curFtype}"
-
+  cd "${snipDir}"
+ 
   ## base case: if found snippet right away: execute it and quit:
-  if [ -f "${curSnipFullName}" ] ; then #if0
-      break
+  if [ -f "${snipName}" ] ; then #if0
+      . "${snipDir}/${snipName}"
+      return
   fi #if0: if not found snippet right away
   
-   ## if reaching here, it means curSnipFullName is not found
+ 
+ ## if reaching here, it means snipName is not found
+ ## now traversing the filetype hierarchy:
+
+ for loopCount in $(seq 1 $DEFAULT_MAX_LOOPCOUNT) ; do {
+  
    ## now changing snippet extension to its parent filetype:
    ##   get filetype of current snippet:
-   curFtype="$(getExtension "${curSnipFullName}")" || quitErr "failed parsing filetype from ${curSnipFullName}" 1
-   # if current snippet has no filetype (its name has no '.<filetype>' extension) -> assume it is base filetype, which should have been caught  by the if clause just above this:
-   
-   # if current file has no extension (i.e. its filetype is base, it should have been caught by the condition above
-   if [ "${curFtype}" = "${curSnipFullName}" ] ; then # if1
-       quitErr "snippet not found: ${curSnipFullName}" 1
-   fi # if1
+ 
+   snipFileType="$(getExtension "${snipName}")" || quitErr "failed parsing filetype from ${snipName}" 1
+   # if current snippet has no filetype/extension -> it is base filetype, which should have been caught  by the if clause just above this. so if it occurs here still, it means error:
+   if [ -z "$snipFileType" ] ; then
+       quitErr "snippet not found: dir=^${snipDir}\$ , snip=^${snipName}\$"
+   fi
    
    ## replace current snippet's extension with its parent filetype:
-    # innerloopcount=0
-    # while [ $innerloopcount -lt 2 ] ; do #2
-    # innerloopcount=$(($innerloopcount+1))
-    ## identify the file that hold information for parent filetype (and the transformation function):
-    parentMetaFile="$(dirname "${curSnipFullName}")/${PARENT_PREFIX}.${curFtype}"
-    ## get the root part of the snippet's name:
-    snipRootName="$(getRootName "${curSnipFullName}")"
+   ### identify the file that hold information for parent filetype (and the transformation function):
+    parentMetaFile="${PARENT_PREFIX}.${snipFileType}"
     
+    ## get the non-extension part of the snippet's name:
+    ## DONT MOVE: this is used not only inside the if statement below, but outside of it as well
+    snipRootName="$(getNameSansExtension "${snipName}")"
+    
+    ## if there is no parent meta file -> it implies that the parent filetype is 'base'. If no such file, and this is not default snip dir: fall back to default snip dir. Otherwise, error:
     if [ ! -f "${parentMetaFile}" ] ; then #if2
-        # if there is no parent meta file -> it means the parent filetype is 'base' -> check if such a base-filetype snippet exist (ie. snippet with same root name but no extension) and if so, use it:
+        ## check if such a base snippet exist:
         if [ -f "${snipRootName}" ] ; then #if3
-            curSnipFullName="${snipRootName}" # snippet found, update snippet name to be used for snippet expansion
+            snipName="${snipRootName}" # snippet found, update snippet name to be used for snippet expansion
             break
         else # otherwise fall back to DEFAULT_SNIPDIR
-         if [ "$(dirname "${curSnipFullName}")" != "${DEFAULT_SNIPDIR}" ] ; then #4
-             curSnipFullName="${DEFAULT_SNIPDIR}/$(basename "${curSnipFullName}")"
+         if [ "$(readlink -e .)" != "$(readlink -e "${DEFAULT_SNIPDIR}")" ] ; then #4
+             snipDir="${DEFAULT_SNIPDIR}"
+             cd "${snipDir}"
              continue
          else #4
-          quitErr "current snip dir: $(readlink -e .): files not found: ^${curSnipFullName}\$, ^${parentMetaFile}\$" 1
+          quitErr "files not found: \
+          snipDir=^$snipDir$ \
+          snipname=^${snipName}\$ \
+          parentmetafiles=^${parentMetaFile}\$ \
+          "
          fi #4
         fi #3
     fi #if2
-   # done #2
 
-  ## parent metafile is found -> swap curSnipFullName extension to that of its parent:
-  parentFileContent="$(grep -Ev '^[ \t]*#' "${parentMetaFile}" | sed '/^$/d')" || quitErr "ERROR: failed parsing parent file: ${parentFilename}" 1
+  ## parent metafile is found -> swap snip extension to that of its parent:
+  ## cat-ting the parent file content, removing blank lines and lines starting with '##':
+  parentFileContent="$(grep -Ev '^[ \t]*#' "${parentMetaFile}" | sed '/^$/d')" || quitErr "ERROR: failed removing blanks lines and ## lines: file=^${parentFilename}\$" 1
   # if .parent file has no content or failed to read its content:
   parentFileType="$(echo "${parentFileContent}" | head -1)"
-  curSnipFullName="${snipRootName}.${parentFileType}"
+  snipName="${snipRootName}.${parentFileType}"
   case "$(echo "${parentFileContent}" | wc -l)" in
    1) true ;;
    2) 
-    curTransformCmd=" | $(echo "${parentFileContent}" | tail -1)" || quitErr "ERROR: failed parsing 2nd line of variable parentFileContent: ${parentFileContent}" 1
-    # check for null var:
+    curTransformCmd=" | $(echo "${parentFileContent}" | tail -1)" \
+        || quitErr "ERROR: failed parsing 2nd line of variable parentFileContent: ${parentFileContent}"
+        
+    ## check for null var:
     for i in parentFileType parentFileContent curTransformCmd ; do
      eval "test -z \"\$$i\"" && quitErr "main loop ops: variable empty: $i" 1
     done
@@ -209,12 +177,18 @@ expandSnip () {
   esac
   continue
  } ; done
+  ## check loop conditions:
+  if [ "$loopCount" -gt "$DEFAULT_MAX_LOOPCOUNT" ] ; then
+      # this means maximum number of looping into parent dirs has reached:
+      quitErr "maximum loop reached while finding snippet file ${snipName}" 1
+  fi
 
- test -f "${curSnipFullName}" \
-     || quitErr " snippet file not found. final file: ${curSnipFullName}" 1
+ test -f "${snipName}" \
+     || quitErr "BUG: snippet file not found but loop goes on until now.\
+      final file: ${snipName}"
  
  ## go back to the initial snip dir in case the program search for other snippets nested inside the arg-ed snippet:
- eval ". \"${curSnipFullName}\"${transformCmd}"
+ eval ". \"${snipDir}/${snipName}\"${transformCmd}"
  
 } # expandSnip
 

@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# created: 2016-08-26 author: Cong Hai Nguyen version: 0.0.1
+# license: GNU GPL-v3 (https://www.gnu.org/licenses/gpl-3.0.txt)
+# description: 
+
+** SMART requirements (README):
+   user experience: extend on major/popular/venerable 
+   keep small -> easier to discard/upgrade parts
+   single way to do things -> standardizable
+** performance metrics   
+   how to measure performance?
+** build test suite   
+** data structure: what fixed? what variable?   
+   -> fixed (core) part: not tend to expand
+   -> variable part: make it as extension
+		Reducing processing time by using context + cache 
+   
+** define filesystem (MANIFEST, bash)
+   write MANIFEST
+   bash scripts 
+** define toolsets:
+   Mr Knuth??? said premature optimization is the root of all evil
+   checking for available tools + libraries to use
+    bash for calling lots of other external tools 
+    mostly self-crunching data -> Python ??? (for OOP+logic+libraries)/C (for speed, although too low a level -> much repetitive coding and maintaining)
+** pseudocode (= comments)    
+** double-entry coding
+   remove 1 function without removing its apperance elsewhere, and adding a function without adding its code elsewhere
+** avoid code rewrite unless really have to
+   Delay, wasted coding+debugging experience, dangers from changes -> no management supports
+** Silent operation -> user though things go well

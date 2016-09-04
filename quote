@@ -2,16 +2,22 @@
 set -o errexit
 
 #define parameters which are passed in.
-content="$(xclip -out)"  # this has led to non-halting if run inside emacs before
+## user must copy the selection in firefox (which will put into x clipboard instead of primary:
+content="$(xclip -selection clipboard -o)"  # this has led to non-halting if run inside emacs before
+if [ -z "$content" ] ; then 
+ echo "clipboard empty. In firefox pls manually press right-click Copy first" >&2
+ return 1 2>/dev/null || exit 1
+fi
 accessedate="$(date +%F)"
 [ -z "$QUOTE_TYPE" ] && QUOTE_TYPE="QUOTE"
 ## focus on web browser and copy the link:
 ("${HOME}"/bin/focus web 2>/dev/null) 
 xdotool key ctrl+l 
 xdotool key ctrl+c 
+fromStr="$(xclip -selection primary -o)"
 xdotool key super+Tab
 cat << EOF
-from [[$(xclip -out)]]. accessed ${accessedate}.
+from [[${fromStr}]]. accessed ${accessedate}.
 #+BEGIN_${QUOTE_TYPE}
 ${content}
 #+END_${QUOTE_TYPE}

@@ -3,5 +3,4 @@
 # created: 2016-08-01
 # version: 0.0.1
 
-echo "#!/usr/bin/env sh"
 expandSnip header.sh
