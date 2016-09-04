@@ -7,8 +7,13 @@
 #   v 0.0.8: changing from bash to sh for efficiency and portability -> change array into string (delimited with ' ')
 # [ -n "$DEBUG" ]  && set -x
 
+set -o errexit
+set -o pipefail
+
+PATH="/usr/local/bin:/usr/bin:/bin"
+hash -r
+
 # ========================= VARIABLES =========================
-PATH="$(printf "%q" "${PATH}" | sed -e "s:${HOME}/bin::")"
 
 DEFAULT_SNIPDIR="${HOME}/sn" # as named
 
@@ -18,50 +23,16 @@ gbInitSnipDir='' # the dir name to be used to find the snippet file. if snippet 
 
 gbInitFtype='' # filetype of the initial snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
 
-# readonly VAR_PREFIX="_v" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
+readonly VAR_PREFIX=".var" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
 
-readonly PARENT_PREFIX="_p" # file prefix for parent metadata (e.g. Par.sh) (_p.<filetype>)
+readonly PARENT_PREFIX=".parent" # file prefix for parent metadata (e.g. Par.sh) (_p.<filetype>)
 
 readonly DEFAULT_MAX_LOOPCOUNT=10 # prevent infinite loop
-
-# gbParentsArray="" # array of parent filetypes starting from the input filetype up to and including the found snippet's filetype. This is used to perform transformation operation from the found snippet to the snippet requested by caller
-
-# gbSnipArr='' # array of parent filetypes come across while searching parent tree for the snippet file
-
-# delimgbSnipArr=' '
-
-# argSnipName='' # name of the snippet filetype
-
-
-# ========== FUNCTION INIT ==========  
-# STEP='func init'
- # gbSnipArrSize=${#gbSnipArr[@]} # for note on gbSnipArr, see args external note just above
-  
-# ## set variables if there is a <filetype>/<VARIABLE_NAME>.arg file
-# for i in seq 0 ${#varNameArray[@]} ; do {
-# curVarName="${varNameArray[$i]}" # current variable name to search for definition file 
-# for i in ${@} ; do {
-#  curVarName="${i}" # current variable name to search for definition file 
- 
- # # not needed
- # ## traverse the parent tree to find a file named <variable-name>.arg:
- # for counter in $(seq 0 $(($gbSnipArrSize-1))) ; do {
- #  curFile="${gbInitSnipDir}/${gbSnipArr[$counter]}/${curVarName}.arg"   # current filename to process
- #  test -f "${curFile}" && eval "${curVarName}=\"$(cat "${curFile}")\"" && break
- # } ; done
-
-# variables not set by the curFile loop above should be set by default values in _base (via the _base/<var-name>.arg file)
-## set variable if not set by the curFile loop above:
- # curVarValue="${varValArray[$i]}"
- # eval "test -z \${${curVarName}+x} &&  ${curVarName}=\"${varValArray[$i]}\""
-# } ;done
-# for i in ${@} ; do eval "echo $i=\$${i}" ; done
-# } # setVars
 
 quitErr () {
  # perform some steps prior to quit with error:
  # echo "sn: $*. Filetypes so far: ${gbSnipArr}" >&2
- echo "sn: $*" >&2 
+ echo -e "$0: $*" >&2 
  shift 1
  if [ $# -gt 0 ] ; then
      exit "$1"
@@ -85,6 +56,7 @@ getRootName () {
 } # getRootName
 
 _v () {
+ # expand var
  # purpose: to setup variable for snippet:
  # each variable's value is stored in a seperate file
  # this function is called when a snippet has been found
@@ -132,15 +104,9 @@ expandSnip () {
  [ $# -eq 0 ] && quitErr "pls read README.md"
 
  ## FLAGS:
- # -C flag is better than passing relative path to snip name, i.e. `sn -C ~/sn/tst/if.sh` is better than `sn tst/if.sh` because the latter method always use caller's current dir by default whereas the former always use the default gbInitSnipDir by default:
- while [ $# -gt 0 ] ; do
   case "$1" in
-   -d|--debug) set -x && shift 1 ;;  
-   -*) quitErr "unrecognized flag ${1}" ;;
-   # -C|--change-dir) readonly gbInitSnipDir="$(readlink -e "${2}")" && shift 2 || quitErr "failed parsing snip dir ${2}"  ;;
-   *) break ;;
-  esac || quitErr "failed parsing flags" 1
- done
+   --debug) set -x && shift 1 ;;  
+  esac
 
  ## parsing argument:
  
