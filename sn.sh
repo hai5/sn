@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # author: Nguyen Cong Hai
 # created: 2016-08-01
-# version: 0.1.0
+# version: 0.2.0
 # description: please read README.md attached
 #  change log:
 #   v 0.0.8: changing from bash to sh for efficiency and portability -> change array into string (delimited with ' ')
@@ -21,9 +21,10 @@ snipDir="${DEFAULT_SNIPDIR}" # the dir name to be used to find the snippet file
 
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
 
-initFileType='' # filetype of the initial snippet being requested as arg. Used in expanding base- filetype variable to know which filetype it is expanding the variable to.
+snipFileType='' # DEPENDENCIES: _v() , expandSnip() -> current filetype as the program passes along the filetype hierarchy, parsed from snipName
+initFileType='' # DEPENDENCIES: expandSnip(). DEPENDED ON: _v () the filetype of the initial snip
 
-readonly VAR_PREFIX=".var" # file prefix for variable filetype (_v<VARNAME>.<filetype>)
+readonly VAR_PREFIX=".var" # DEPENDENCIES: _v() function -> varFileName file prefix for variable filetype (_v<VARNAME>.<filetype>)
 
 readonly PARENT_PREFIX=".parent" # file prefix for parent metadata (e.g. Par.sh) (_p.<filetype>)
 
@@ -49,7 +50,7 @@ getExtension () {
   echo ""
   return 1
  fi
-} # getExtension
+} # 
 
 getNameSansExtension () {
  echo "$*" | sed -e 's/\.[^.]\+$//'
@@ -61,31 +62,35 @@ _v () {
  # each variable's value is stored in a seperate file
  # this function is called when a snippet has been found
  # args external: gbSnipArr # set by the expandSnip function. So some expandSnip function should be run first before running this function
- local thevarname varFileName varFileExt
+
+ local cachedVarValue 
+ local varFileName  # name of the file that has info on this variable
+ local varFileExt # filetype of the variable , e.g. sh or html etc
  
- thevarname="${1}_${initFileType}"
+ [ $# -eq 0 ] && quitErr "_v(): expecting exactly 1 arg: the var name (e.g. COMMENT, SEPARATOR, etc)"
+ 
+ cachedVarValue="${1}_${snipFileType}"
  
  ## if variable already defined in environment, use it:
- eval "test -n \"\${${thevarname}+x}\"" \
-     && echo "${thevarname}" \
+ eval "test -n \"\${${cachedVarValue}+x}\"" \
+     && echo "${cachedVarValue}" \
      && return
  
- if [ -z "$initFileType" ] ; then
-     varFileExt=''
+ if [ -z "$snipFileType" ] ; then
+     varFileExt="${initFileType}"
  else
-  varFileExt=".${initFileType}"
+  varFileExt="${snipFileType}"
  fi
  # recursively call sn to expand the file _v<varname>.<filetype>:
- varFileName="$(dirname "${snipDir}")/v${1}${varFileExt}"
- eval "${thevarname}=\"\$($0 \"${varFileName}\" 2>&1 )\""
- eval "printf \"\${${thevarname}}\""
+ varFileName=".var.${1}.${varFileExt}"
+ eval "${cachedVarValue}=\"\$($0 \"${varFileName}\" 2>&1 )\""
+ eval "printf \"\${${cachedVarValue}}\""
 } # _v 
 
 # ========================= MAIN =========================
 
 expandSnip () {
- local snipName="${1}"
- local snipFileType='' # initial filetype, parsed from snipName
+ local snipName
  local loopCount=0
  local parentFileType='' # type of parent file, as read from parent metafile
  local parentFileContent='' # parent's file content stripped off # and blank lines
@@ -100,17 +105,12 @@ expandSnip () {
    --debug) set -x && shift 1 ;;  
    -C|--change-dir) snipDir="$2" ; shift 2 ;;
   esac
+  
+  snipName="${1}"
 
   ## change to dir:
  ## go to the current snippet dir:
   cd "${snipDir}"
- 
-  ## base case: if found snippet right away: execute it and quit:
-  if [ -f "${snipName}" ] ; then #if0
-      . "${snipDir}/${snipName}"
-      return
-  fi #if0: if not found snippet right away
-  
  
  ## if reaching here, it means snipName is not found
  ## now traversing the filetype hierarchy:
@@ -120,7 +120,16 @@ expandSnip () {
    ## now changing snippet extension to its parent filetype:
    ##   get filetype of current snippet:
  
-   snipFileType="$(getExtension "${snipName}")" || quitErr "failed parsing filetype from ${snipName}" 1
+  ## DONT MOVE: this serves not only this function expandSnip() but also the other function: _v ()
+   snipFileType="$(getExtension "${snipName}")" || [ -z "$snipFileType" ] # getExtension could return 1 if snipName has no extension. Since this script has  set -o errexit setting, need to have || to nullify the errexit from getExtension
+   [ -z "$initFileType" ] && initFileType="${snipFileType}"
+   
+  ## base case: if found snippet right away: execute it and quit:
+  if [ -f "${snipName}" ] ; then #if0
+      . "${snipDir}/${snipName}"
+      return
+  fi #if0: if not found snippet right away
+  
    # if current snippet has no filetype/extension -> it is base filetype, which should have been caught  by the if clause just above this. so if it occurs here still, it means error:
    if [ -z "$snipFileType" ] ; then
        quitErr "snippet not found: dir=^${snipDir}\$ , snip=^${snipName}\$"
