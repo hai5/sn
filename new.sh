@@ -4,3 +4,13 @@
 # version: 0.0.1
 
 expandSnip header.sh
+cat <<EOF
+set -o errexit
+set -o pipefail
+
+. ~/lib/libparsedebug.sh
+
+_quitErr () {
+  . ~/lib/libquiterr.sh
+}
+EOF

@@ -7,5 +7,5 @@
 # PATH="\$(printf "%q" "\${PATH}" | sed -e "s:\${HOME}/bin::")"
 
 cat <<EOF
-PATH='/usr/local/bin:/usr/bin/:/bin'
+PATH='/usr/local/bin:/usr/bin/:/bin' ; hash -r
 EOF

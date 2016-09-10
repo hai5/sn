@@ -155,10 +155,10 @@ expandSnip () {
              cd "${snipDir}"
              continue
          else #4
-          quitErr "files not found: \
-          snipDir=^$snipDir$ \
-          snipname=^${snipName}\$ \
-          parentmetafiles=^${parentMetaFile}\$ \
+          quitErr "files not found. Current states: \
+          \t\nsnipDir=^$snipDir$ \
+          \t\nsnipname=^${snipName}\$ \
+          \t\nparentmetafiles=^${parentMetaFile}\$ \
           "
          fi #4
         fi #3
