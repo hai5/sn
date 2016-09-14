@@ -1,22 +1,18 @@
 #!/usr/bin/env bash
 # author: Nguyen Cong Hai
 # created: 2016-08-01
-# version: 0.2.0
+# version: 0.3.0
 # description: please read README.md attached
-#  change log:
-#   v 0.0.8: changing from bash to sh for efficiency and portability -> change array into string (delimited with ' ')
-# [ -n "$DEBUG" ]  && set -x
+# design note: please see ./DEVEL.log
 
-set -o errexit
 set -o pipefail
 
-PATH="/usr/local/bin:/usr/bin:/bin"
-hash -r
+PATH="/usr/local/bin:/usr/bin:/bin" ; hash -r
 
 # ========================= VARIABLES =========================
 
 DEFAULT_SNIPDIR="${HOME}/sn" # as named
-
+# DEFAULT_CACHEDSNIPS_DIR="${HOME}/sn/snips.cache" # this will be set by the function _nch_sn_getCachedSnipName_ for consistency
 snipDir="${DEFAULT_SNIPDIR}" # the dir name to be used to find the snippet file
 
 # STEP='var init' # for debugging: print out which step program is in (e.g main loop, variable initialization, etc) 
@@ -32,7 +28,6 @@ readonly DEFAULT_MAX_LOOPCOUNT=10 # prevent infinite loop
 
 quitErr () {
  # perform some steps prior to quit with error:
- # echo "sn: $*. Filetypes so far: ${gbSnipArr}" >&2
  echo -e "$0: $*" >&2 
  shift 1
  if [ $# -gt 0 ] ; then
@@ -52,10 +47,21 @@ getExtension () {
  fi
 } # 
 
+# prSnipFullName () {
+#  readlink -e "$*"
+# }
+
 getNameSansExtension () {
  echo "$*" | sed -e 's/\.[^.]\+$//'
 } # getNameSansExtension
 
+_eval () {
+ if [ -n "$_IS_DRY_RUN_" ] ; then
+      echo $*
+      return
+ fi
+ eval $*
+}
 _v () {
  # expand var
  # purpose: to setup variable for snippet:
@@ -63,13 +69,11 @@ _v () {
  # this function is called when a snippet has been found
  # args external: gbSnipArr # set by the expandSnip function. So some expandSnip function should be run first before running this function
 
- local cachedVarValue 
- local varFileName  # name of the file that has info on this variable
+ local cachedVarValue="${1}_${snipFileType}"  # env variable name with cached string, e.g. COMMENT_sh , with the string '#' as its value 
+ local varFileName=".var.${1}.${varFileExt}" # name of the file that has info on this variable
  local varFileExt # filetype of the variable , e.g. sh or html etc
  
  [ $# -eq 0 ] && quitErr "_v(): expecting exactly 1 arg: the var name (e.g. COMMENT, SEPARATOR, etc)"
- 
- cachedVarValue="${1}_${snipFileType}"
  
  ## if variable already defined in environment, use it:
  eval "test -n \"\${${cachedVarValue}+x}\"" \
@@ -81,16 +85,35 @@ _v () {
  else
   varFileExt="${snipFileType}"
  fi
- # recursively call sn to expand the file _v<varname>.<filetype>:
- varFileName=".var.${1}.${varFileExt}"
- eval "${cachedVarValue}=\"\$($0 \"${varFileName}\" 2>&1 )\""
+ 
+ # use sn ($0 in the code below) to expand the file <var-file-name>:
+ eval "${cachedVarValue}=\"\$(expandSnip \"${varFileName}\" 2>&1 )\""
  eval "printf \"\${${cachedVarValue}}\""
 } # _v 
 
 # ========================= MAIN =========================
+_nch_sn_getCachedSnipName_ () {
+ snipName="$(basename "$*")"
+ snipExtName="${snipName##*.}"
+ snipRootName="${snipName%.*}"
+ 
+ # # snipName must be absolute for easy parsing:
+ # if ! (grep -Eq '^(\.|\.\.){0,1}/' <<< "${snipName}") ; then
+ #     quitErr "EXIT: snipName must include dirname for easy parsing: ${snipName}"
+ # fi
+ 
+ cachedSnipName="$(dirname "${snipName}")/.cache/${snipExtName}-mode/${snipRootName}"
+ if [ -z "${cachedSnipName}" ] ; then
+      quitErr "EXIT: resulting cachedSnipName is null"
+else
+ echo "${cachedSnipName}"
+fi
+}
 
 expandSnip () {
- local snipName
+ # DONT ATOMIZE this into snip-file searcher and parser - parser part need info from the searcher part (the parent's snippets transformation code). So this will return the whole cmd string: `cat snipName | {parentTransformationString}`
+ 
+ local snipName="${1}"
  local loopCount=0
  local parentFileType='' # type of parent file, as read from parent metafile
  local parentFileContent='' # parent's file content stripped off # and blank lines
@@ -100,20 +123,14 @@ expandSnip () {
  ## if no args given:
  [ $# -eq 0 ] && quitErr "expandSnip(): expecting args"
 
- ## FLAGS:
-  case "$1" in
-   --debug) set -x && shift 1 ;;  
-   -C|--change-dir) snipDir="$2" ; shift 2 ;;
-  esac
-  
-  snipName="${1}"
-
   ## change to dir:
  ## go to the current snippet dir:
   cd "${snipDir}"
  
  ## if reaching here, it means snipName is not found
  ## now traversing the filetype hierarchy:
+  
+# - findSnipFNamed:
 
  for loopCount in $(seq 1 $DEFAULT_MAX_LOOPCOUNT) ; do {
   
@@ -126,13 +143,12 @@ expandSnip () {
    
   ## base case: if found snippet right away: execute it and quit:
   if [ -f "${snipName}" ] ; then #if0
-      . "${snipDir}/${snipName}"
-      return
+       break
   fi #if0: if not found snippet right away
   
    # if current snippet has no filetype/extension -> it is base filetype, which should have been caught  by the if clause just above this. so if it occurs here still, it means error:
    if [ -z "$snipFileType" ] ; then
-       quitErr "snippet not found: dir=^${snipDir}\$ , snip=^${snipName}\$"
+       quitErr "ERR: snip named ^${snipName}\$ (base filetype) not found in ^${snipDir}\$"
    fi
    
    ## replace current snippet's extension with its parent filetype:
@@ -148,18 +164,14 @@ expandSnip () {
         ## check if such a base snippet exist:
         if [ -f "${snipRootName}" ] ; then #if3
             snipName="${snipRootName}" # snippet found, update snippet name to be used for snippet expansion
-            break
+            break # keep it here in case the 'return' statement just above gone and there is no mechanism to stop this loop
         else # otherwise fall back to DEFAULT_SNIPDIR
          if [ "$(readlink -e .)" != "$(readlink -e "${DEFAULT_SNIPDIR}")" ] ; then #4
              snipDir="${DEFAULT_SNIPDIR}"
              cd "${snipDir}"
              continue
          else #4
-          quitErr "files not found. Current states: \
-          \t\nsnipDir=^$snipDir$ \
-          \t\nsnipname=^${snipName}\$ \
-          \t\nparentmetafiles=^${parentMetaFile}\$ \
-          "
+          quitErr "snip ^${snipName}$ not found in the last resort dir: ^${snipDir}$."
          fi #4
         fi #3
     fi #if2
@@ -178,7 +190,7 @@ expandSnip () {
         
     ## check for null var:
     for i in parentFileType parentFileContent curTransformCmd ; do
-     eval "test -z \"\$$i\"" && quitErr "main loop ops: variable empty: $i" 1
+     eval "test -z \"\$$i\"" && quitErr "EXIT: expandSnip().main-loop: variable empty: $i"
     done
     transformCmd="${transformCmd} ${curTransformCmd}"
     ;;
@@ -193,14 +205,31 @@ expandSnip () {
   fi
 
  test -f "${snipName}" \
-     || quitErr "BUG: snippet file not found but loop goes on until now.\
-      final file: ${snipName}"
+     || quitErr "EXIT: post-ops checking: snippet ^${snipName}$ have not been found."
+     
+ # _eval "cat \"${snipDir}/${snipName}\"${transformCmd}"
+ cachedSnipName="$(_nch_sn_getCachedSnipName_ ${snipDir}/${snipName})"
  
- ## go back to the initial snip dir in case the program search for other snippets nested inside the arg-ed snippet:
- eval ". \"${snipDir}/${snipName}\"${transformCmd}"
+# compare last modify time: if cached file not existing or older than source snip file:
+ if [ "${cachedSnipName}" -ot "${snipName}" ] ; then
+      # rebuild the cached file:
+     cachedSnipCmd="cat ${snipDir}/${snipName}${transformCmd}"
+     eval "${cachedSnipCmd} > ${cachedSnipName}" || quitErr "failed transforming child snip into parent snip for ${cachedSnipName}"
+ fi
  
-} # expandSnip
+ # echo the cached snip filename out (for emacs to expand further):
+ echo "$(readlink -e "${cachedSnipName}")"
+
+ return
+}
 
 readonly SINGLE_INSTANCE_SN=1 || quitErr "only run 1 instance of sn for efficiency"
     
+ ## FLAGS:
+  case "$1" in
+   --debug) set -x && shift 1 ;;  
+   --dry-run) _IS_DRY_RUN_='t' ; shift 1 ;;
+   -C|--change-dir) snipDir="$2" ; shift 2 ;;
+  esac
+  
 expandSnip "$@"
