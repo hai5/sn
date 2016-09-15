@@ -1,0 +1,28 @@
+* v0.3.0: new strategy: text verbatim, integrating to emacs
+  - why broken: need further integration with emacs to specify cursor pos
+  - freq of issue: every if-else and other paired construct in shell script
+  - tried but failed to integrate external snippet system to expand embeded emacs-lisp code: failed -> develop one myself.
+** files affected:
+*** ~/sn/sn.sh [1/1]:
+    now only serve as searching and printing out a template name + the shell-based parent-to-child-file-type transformation string (delimitted by '//' symbol)
+    lost nesting capability -> made up for by emacs expand function embedded inside the snippet and expanded by some emacs-lisp code
+    
+    + [X] employing caching mechanism:
+    
+*** ~/sn/<the old snippet files> [1/2]:
+    - [ ] convert snippet content into new syntax
+      
+*** ~/.emacs-autoloads/h-xpsnip.el [2/2]:
+    - [X] use yas-expand-snippet
+    - other: 
+      + renamed from nch-insert-template.el for short
+      
+* v0.0.1: core features
+  - code simplicity
+  - conservative memory-usage: snippet content read only when needed - no auto-loading contents of ALL mode-specific snippets into memory - just 
+  - nesting: snippet code call an sn function to expand another snippet inside it) 
+
+  some snippet coding systems I am aware of:
+  - too finely atomized codes -> complex code structure to maintain/improve on
+  - dependencies on python ...
+  - no parents' transformation

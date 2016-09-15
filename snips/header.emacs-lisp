@@ -1,0 +1,6 @@
+;;; package --- <<summary>>
+;;; Commentary:
+;;; Code:
+
+(provide '<<package-name>>) ;;
+;;; <<buffer-file-name>> ends here

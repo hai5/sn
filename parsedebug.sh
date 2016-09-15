@@ -1,7 +1,0 @@
-#!/bin/sh
-# author: Nguyen Cong Hai
-# created: 2016-07-29
-
-cat <<EOF
-. ~/lib/parsedebug  # parse --debug flag at "$1" (if applicable)
-EOF

@@ -1,9 +1,0 @@
-
-Sn.sh,211
-readonly PROGNAME=10,260
-readonly ERR=11,299
-readonly PARENT_FILENAME=14,468
- gbParentsArraySize=48,2046
-for i in ${@} ; do 53,2357
-expandSnip 70,3140
-if [ $# -eq 0 ] ; then echo "$Usage" ; exit 179,7809

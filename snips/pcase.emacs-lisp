@@ -1,0 +1,3 @@
+(pcase <expression>
+  ( <return-value> ) ; a case
+) ; pcase

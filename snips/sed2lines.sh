@@ -1,0 +1,1 @@
+sed -n '/\<case\>/,/\<esac\>/p' "${BASH_SOURCE}" | grep -E '[[:space:]]-[^(]+\)'
